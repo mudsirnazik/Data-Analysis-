@@ -5,7 +5,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  EC2_IP: '13.211.215.133'   # replace with your EC2 public IP
+  EC2_IP: '3.26.213.217'   # replace with your EC2 public IP
   EC2_USER: 'ubuntu'
 
 stages:
@@ -42,7 +42,7 @@ stages:
     - task: DownloadSecureFile@1
       name: sshKey
       inputs:
-        secureFile: 'Data Analysis Project.pem'
+        secureFile: 'Data Analytics.pem'
 
     - script: |
         chmod 600 $(sshKey.secureFilePath)
