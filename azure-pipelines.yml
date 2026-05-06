@@ -5,7 +5,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  EC2_IP: '13.236.5.114'   # replace with your EC2 public IP
+  EC2_IP: '13.211.215.133'   # replace with your EC2 public IP
   EC2_USER: 'ubuntu'
 
 stages:
