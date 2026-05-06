@@ -42,7 +42,7 @@ stages:
     - task: DownloadSecureFile@1
       name: sshKey
       inputs:
-        secureFile: 'lab-key.pem'
+        secureFile: 'Data Analysis Project.pem'
 
     - script: |
         chmod 600 $(sshKey.secureFilePath)
