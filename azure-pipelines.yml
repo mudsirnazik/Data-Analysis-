@@ -1,0 +1,141 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+# =========================
+# 🔨 BUILD STAGE
+# =========================
+- stage: Build
+  displayName: Build Stage
+  jobs:
+  - job: BuildJob
+    steps:
+    - script: echo "Building application..."
+      displayName: Build App
+
+    - script: |
+        echo "Packaging files..."
+        mkdir output
+        cp -r * output/
+      displayName: Package Artifacts
+
+# =========================
+# 🧪 TEST STAGE (PARALLEL)
+# =========================
+- stage: Test
+  displayName: Test Stage
+  dependsOn: Build
+  jobs:
+
+  - job: UnitTests
+    steps:
+    - script: echo "Running Unit Tests..."
+      displayName: Unit Tests
+
+  - job: IntegrationTests
+    steps:
+    - script: echo "Running Integration Tests..."
+      displayName: Integration Tests
+
+  - job: SecurityTests
+    steps:
+    - script: echo "Running Security Tests..."
+      displayName: Security Tests
+
+# =========================
+# 🚀 DEPLOY DEV (EC2 + APACHE)
+# =========================
+- stage: Deploy_Dev
+  displayName: Deploy Dev
+  dependsOn: Test
+  jobs:
+  - job: DevDeploy
+    steps:
+
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'EC2-DEV'
+        sourceFolder: '$(System.DefaultWorkingDirectory)'
+        contents: '**'
+        targetFolder: '/tmp/app'
+
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'EC2-DEV'
+        runOptions: 'commands'
+        commands: |
+          sudo rm -rf /var/www/html/*
+          sudo cp -r /tmp/app/* /var/www/html/
+          sudo systemctl restart apache2
+
+# =========================
+# 🧪 DEPLOY QA
+# =========================
+- stage: Deploy_QA
+  displayName: Deploy QA
+  dependsOn: Deploy_Dev
+  jobs:
+  - job: QADeploy
+    steps:
+
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'EC2-QA'
+        sourceFolder: '$(System.DefaultWorkingDirectory)'
+        contents: '**'
+        targetFolder: '/tmp/app'
+
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'EC2-QA'
+        runOptions: 'commands'
+        commands: |
+          sudo rm -rf /var/www/html/*
+          sudo cp -r /tmp/app/* /var/www/html/
+          sudo systemctl restart apache2
+
+# =========================
+# 🔴 APPROVAL GATE (MANUAL)
+# =========================
+- stage: Approval
+  displayName: Production Approval
+  dependsOn: Deploy_QA
+  jobs:
+  - job: WaitForApproval
+    pool: server
+    steps:
+    - task: ManualValidation@0
+      inputs:
+        instructions: "Approve deployment to Production"
+        onTimeout: reject
+        timeout: "1d"
+
+# =========================
+# 🌍 PRODUCTION DEPLOY
+# =========================
+- stage: Deploy_Prod
+  displayName: Deploy Production
+  dependsOn: Approval
+  jobs:
+  - job: ProdDeploy
+    steps:
+
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'EC2-PROD'
+        sourceFolder: '$(System.DefaultWorkingDirectory)'
+        contents: '**'
+        targetFolder: '/tmp/app'
+
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'EC2-PROD'
+        runOptions: 'commands'
+        commands: |
+          sudo rm -rf /var/www/html/*
+          sudo cp -r /tmp/app/* /var/www/html/
+          sudo systemctl restart apache2
